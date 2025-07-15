@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>गणित खेल 🎉</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #141e30, #243b55);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      color: white;
+    }
+    canvas#fireCanvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1000;
+      pointer-events: none;
+      display: none;
+    }
+    .game-container {
+      background: #1e1e2f;
+      padding: 25px;
+      border-radius: 20px;
+      box-shadow: 0 0 25px rgba(0, 255, 255, 0.3);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+      position: relative;
+      z-index: 1;
+    }
+    h1 {
+      margin-bottom: 10px;
+      font-size: 24px;
+    }
+    .question {
+      font-size: 32px;
+      margin: 10px 0;
+      font-weight: bold;
+    }
+    .hint {
+      font-size: 16px;
+      color: #ffd966;
+      margin-bottom: 5px;
+    }
+    .timer {
+      font-size: 18px;
+      color: #ff6666;
+      margin-bottom: 10px;
+    }
+    .result {
+      font-size: 18px;
+      height: 25px;
+      margin-bottom: 10px;
+    }
+    .display {
+      background: #111;
+      padding: 15px;
+      border-radius: 12px;
+      font-size: 24px;
+      margin-bottom: 15px;
+      box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.3);
+    }
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    button {
+      font-size: 20px;
+      padding: 12px;
+      border: 2px solid #00ffff;
+      background: transparent;
+      color: #00ffff;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    button::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 255, 255, 0.2);
+      transition: left 0.3s ease;
+    }
+    button:hover::before {
+      left: 0;
+    }
+    button:active {
+      transform: scale(0.95);
+    }
+    .equals-button {
+      background-color: #00ff00 !important;
+      color: black !important;
+      font-weight: bold;
+      font-size: 24px !important;
+      grid-column: span 2;
+    }
+    .score {
+      margin-top: 10px;
+      font-size: 16px;
+    }
+    #startBtn {
+      background-color: #00ff88;
+      color: #000;
+      font-weight: bold;
+      margin-bottom: 20px;
+      padding: 12px 20px;
+      font-size: 18px;
+    }
+    #gameArea {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<canvas id="fireCanvas"></canvas>
+<div class="game-container">
+  <button id="startBtn" onclick="startGame()">🎮 गेम शुरू करें</button>
+  <div id="gameArea">
+    <h1>🧮 गणित खेल</h1>
+    <audio id="clap-sound" src="https://cdn.pixabay.com/download/audio/2021/08/09/audio_8fda9fbe9b.mp3"></audio>
+    <audio id="firework-sound" src="https://cdn.pixabay.com/download/audio/2022/02/07/audio_4990a8488d.mp3"></audio>
+    <div class="timer" id="timer">⏱️ समय: 30</div>
+    <div class="question" id="question">...</div>
+    <div class="hint" id="hint">📌 सुझाव:</div>
+    <div class="display" id="userInput">0</div>
+    <div class="result" id="resultText"></div>
+    <div class="buttons">
+      <button onclick="press('7')">7</button>
+      <button onclick="press('8')">8</button>
+      <button onclick="press('9')">9</button>
+      <button onclick="press('-')">➖</button>
+
+      <button onclick="press('4')">4</button>
+      <button onclick="press('5')">5</button>
+      <button onclick="press('6')">6</button>
+      <button onclick="backspace()">⌫</button>
+
+      <button onclick="press('1')">1</button>
+      <button onclick="press('2')">2</button>
+      <button onclick="press('3')">3</button>
+      <button onclick="clearInput()">C</button>
+
+      <button onclick="press('0')">0</button>
+      <button onclick="press('.')">.</button>
+      <button class="equals-button" onclick="checkAnswer()">=</button>
+    </div>
+    <div class="score" id="scoreBoard">स्कोर: 0 | स्तर: 1</div>
+  </div>
+</div>
+
+<script>
+let input = "", answer = 0, score = 0, level = 1, timer, timeLeft = 30;
+const questionEl = document.getElementById("question"),
+  userInput = document.getElementById("userInput"),
+  resultText = document.getElementById("resultText"),
+  scoreBoard = document.getElementById("scoreBoard"),
+  timerEl = document.getElementById("timer"),
+  hintEl = document.getElementById("hint"),
+  startBtn = document.getElementById("startBtn"),
+  gameArea = document.getElementById("gameArea"),
+  clapSound = document.getElementById("clap-sound"),
+  fireworkSound = document.getElementById("firework-sound"),
+  canvas = document.getElementById("fireCanvas"),
+  ctx = canvas.getContext("2d");
+
+function startGame() {
+  startBtn.style.display = "none";
+  gameArea.style.display = "block";
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  generateQuestion();
+}
+
+function generateQuestion() {
+  let max = 10 + level * 2;
+  let num1 = Math.floor(Math.random() * max) + 1;
+  let num2 = Math.floor(Math.random() * max) + 1;
+  let ops = ["+", "-", "*", "/"];
+  let op = ops[Math.floor(Math.random() * ops.length)];
+  if (op === "/") num1 = num1 * num2;
+  let symbols = {
+    "+": "➕ बेरीज (जोड़)",
+    "-": "➖ वजाबाकी (घटाव)",
+    "*": "✖️ गुणाकार",
+    "/": "➗ भागाकार"
+  };
+  questionEl.textContent = `${num1} ${op} ${num2}`;
+  hintEl.textContent = "📌 सुझाव: " + symbols[op];
+  answer = eval(`${num1} ${op} ${num2}`);
+  startTimer();
+}
+
+function press(val) {
+  if (input === "0") input = "";
+  input += val;
+  userInput.textContent = input;
+}
+
+function clearInput() {
+  input = "";
+  userInput.textContent = "0";
+  resultText.textContent = "";
+}
+
+function backspace() {
+  input = input.slice(0, -1);
+  if (input === "") input = "0";
+  userInput.textContent = input;
+}
+
+function checkAnswer() {
+  stopTimer();
+  if (parseFloat(eval(input)) === parseFloat(answer.toFixed(2))) {
+    resultText.textContent = "✅ सही उत्तर!";
+    resultText.style.color = "#00ff88";
+    clapSound.play();
+    fireworkSound.play();
+    score += 10;
+    level++;
+    if (level <= 50 && level % 10 === 1) {
+      triggerFireworks();
+    }
+  } else {
+    resultText.textContent = "❌ गलत! सही उत्तर: " + answer.toFixed(2);
+    resultText.style.color = "#ff5566";
+  }
+  input = "";
+  userInput.textContent = "0";
+  scoreBoard.textContent = `स्कोर: ${score} | स्तर: ${level}`;
+  setTimeout(() => {
+    resultText.textContent = "";
+    if (level <= 50) generateQuestion();
+    else resultText.textContent = "🎉 आप 50 स्तर पार कर चुके हैं!";
+  }, 1500);
+}
+
+function startTimer() {
+  timeLeft = 30;
+  timerEl.textContent = `⏱️ समय: ${timeLeft}`;
+  clearInterval(timer);
+  timer = setInterval(() => {
+    timeLeft--;
+    timerEl.textContent = `⏱️ समय: ${timeLeft}`;
+    if (timeLeft <= 0) {
+      clearInterval(timer);
+      resultText.textContent = "⛔ समय समाप्त! उत्तर: " + answer.toFixed(2);
+      resultText.style.color = "orange";
+      setTimeout(() => {
+        input = "";
+        userInput.textContent = "0";
+        resultText.textContent = "";
+        generateQuestion();
+      }, 2000);
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timer);
+}
+
+function triggerFireworks() {
+  canvas.style.display = "block";
+  let particles = [];
+  for (let i = 0; i < 100; i++) {
+    particles.push({
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      radius: Math.random() * 3 + 2,
+      color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+      speedX: (Math.random() - 0.5) * 10,
+      speedY: (Math.random() - 0.5) * 10
+    });
+  }
+  let duration = 100;
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      p.x += p.speedX;
+      p.y += p.speedY;
+      p.radius *= 0.96;
+    });
+    duration--;
+    if (duration > 0) requestAnimationFrame(animate);
+    else canvas.style.display = "none";
+  }
+  animate();
+}
+</script>
+</body>
+</html>
